@@ -10,7 +10,7 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-1d3557.svg)](requirements.txt)
 [![No OCR](https://img.shields.io/badge/OCR-not%20needed%20for%20born--digital%20PDFs-e63946.svg)](#-when-you-still-need-ocr)
 
-[**▶ Live demo and interactive course**](https://m0-ar.github.io/pdf-not-pixels/) ·
+[**▶ Live demo and interactive course**](https://m0-ar.github.io/pdf-not-pixels/preview.html) ·
 [Executive summary](#-executive-summary) · [Cost comparison](#-what-it-saves) · [Quick start](#-quick-start) ·
 [Beginner guide](#-beginner-guide--read-this-and-you-are-a-professional)
 
@@ -20,6 +20,27 @@
 
 > **New to PDFs?** Read the [🌱 Beginner guide](#-beginner-guide--read-this-and-you-are-a-professional).
 > You will know more than most interview candidates.
+
+## 🌐 Live site
+
+Click any link: everything opens in your browser, nothing to install.
+
+| Open | Link |
+|---|---|
+| 🏠 **Home** | <https://m0-ar.github.io/pdf-not-pixels/> |
+| ▶ **The live demo page** | <https://m0-ar.github.io/pdf-not-pixels/preview.html> |
+| 📄 **The same page, from the `docs/` folder** | <https://m0-ar.github.io/pdf-not-pixels/docs/preview.html> |
+
+Jump straight to a part of the page:
+
+| Section | What you can do there |
+|---|---|
+| [🧪 Live demo](https://m0-ar.github.io/pdf-not-pixels/preview.html#demo) | Take an invoice apart: inspect any character, X-ray the page, reveal hidden text. |
+| [💰 Cost calculator](https://m0-ar.github.io/pdf-not-pixels/preview.html#cost) | Compare monthly costs with cloud OCR services, at your own volume. |
+| [👥 Use cases](https://m0-ar.github.io/pdf-not-pixels/preview.html#uses) | See who uses it, and for what. |
+| [⚙️ How it works](https://m0-ar.github.io/pdf-not-pixels/preview.html#how) | Six steps, no guessing. |
+| [🌱 Academy](https://m0-ar.github.io/pdf-not-pixels/preview.html#academy) | Learn from zero to pro, with quizzes and instant explanations. |
+| [❓ FAQ](https://m0-ar.github.io/pdf-not-pixels/preview.html#faq) | Short answers to common questions. |
 
 ---
 
@@ -44,6 +65,7 @@ Only true scans still need OCR, and the built-in triage tells you exactly which 
 
 ## 📚 Contents
 
+- [Live site](#-live-site)
 - [The idea in one minute](#-the-idea-in-one-minute)
 - [What you get](#-what-you-get)
 - [See it in action](#-see-it-in-action)
@@ -115,7 +137,7 @@ writes down what each one says instead of painting it. Nothing is guessed, becau
 
 ## 🎬 See it in action
 
-The [live demo](https://m0-ar.github.io/pdf-not-pixels/) runs in your browser. It takes
+The [live demo](https://m0-ar.github.io/pdf-not-pixels/preview.html#demo) runs in your browser. It takes
 [a sample invoice](examples/demo-invoice.pdf) apart: the page you see is **drawn from the extracted data**, not
 shown as an image.
 
@@ -163,7 +185,7 @@ for **100,000 pages a month**:
 - **The other side of the value:** layout-aware cloud services return more than text (tables, form fields). What
   pdf-not-pixels gives you instead is the exact characters with exact positions, colours and fonts, from which tables
   and fields can be rebuilt without guessing.
-- **Try your own numbers:** the [live cost calculator](https://m0-ar.github.io/pdf-not-pixels/#cost).
+- **Try your own numbers:** the [live cost calculator](https://m0-ar.github.io/pdf-not-pixels/preview.html#cost).
 
 Sources:
 [AWS Textract](https://aws.amazon.com/textract/pricing/) ·
@@ -366,7 +388,7 @@ Rebuild the page from the extracted data alone and compare it with the original.
 missing. Then re-run every page after each fix.
 </details>
 
-👉 **Learn it interactively:** the [Academy](https://m0-ar.github.io/pdf-not-pixels/#academy) has five short
+👉 **Learn it interactively:** the [Academy](https://m0-ar.github.io/pdf-not-pixels/preview.html#academy) has five short
 levels with quizzes and instant explanations.
 
 ---
@@ -556,6 +578,9 @@ every core.
 README.md              this page
 METHOD.md              the full method, step by step, with every pitfall and how to handle it
 preview.html           the live demo, cost calculator and course (published with GitHub Pages)
+index.html             the site's home: opens preview.html
+docs/                  an exact copy of the site, so it works with either GitHub Pages source (/ or /docs);
+                       rebuilt by examples/make_docs_mirror.py, checked by the tests
 tools/
   triage.py            sort pages: real text / scan / outlined text; find hidden text
   extract.py           PDF page -> page data (JSON)
@@ -566,6 +591,7 @@ examples/
   demo-invoice.pdf     the demo invoice (made by make_demo.py); demo-fixes.json repairs its 2 unmapped glyphs
   make_sample.py       builds sample.pdf, used by the tests; sample-fixes.json repairs it
   make_media.py        records the GIF, video and screenshots from the live demo
+  make_docs_mirror.py  copies the site into docs/
 site/
   demo/                the demo invoice's extracted data, used by the live demo
   media/               GIF, video and screenshots

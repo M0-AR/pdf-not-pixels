@@ -40,7 +40,7 @@ button, .btn { font: inherit; cursor: pointer; border-radius: 10px; border: 1px 
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
 .btn.dark { background: var(--brand); border-color: var(--brand); color: var(--bg); font-weight: 700; }
 button.on { background: var(--brand); color: var(--bg); border-color: var(--brand); }
-section { padding: 72px 0; border-bottom: 1px solid var(--line); }
+section { padding: 72px 0; border-bottom: 1px solid var(--line); scroll-margin-top: 60px; }
 section h2 { font-size: clamp(26px, 4vw, 36px); line-height: 1.2; margin: 0 0 10px; }
 .kicker { text-transform: uppercase; letter-spacing: .12em; font-size: 12px; font-weight: 700; color: var(--accent); }
 .lead { font-size: 19px; color: var(--muted); max-width: 760px; }
@@ -499,7 +499,12 @@ $('reset').onclick = () => {
   document.querySelectorAll('.toolbar button').forEach(b => b.classList.toggle('on', b.dataset.mode === 'normal'));
   $('insp').innerHTML = ''; $('hint').textContent = 'Click any character on the page.'; draw();
 };
-fetch('site/demo/page-1.json').then(r => r.json()).then(m => { model = m; draw(); textOut(); document.body.dataset.ready = '1'; })
+fetch('site/demo/page-1.json').then(r => r.json()).then(m => {
+  model = m; draw(); textOut();
+  // the demo grows the page after the browser has jumped to #section: jump again to the right place
+  const target = location.hash && document.getElementById(location.hash.slice(1));
+  if (target) target.scrollIntoView({behavior: 'instant'});
+  document.body.dataset.ready = '1'; })
   .catch(() => { $('stage').innerHTML = '<p style="padding:20px">The demo needs to be served over http(s), e.g. GitHub Pages or <code>python3 -m http.server</code>.</p>'; });
 
 // ---------- cost calculator (list prices per 1,000 pages, official pages, Oct 2026) ----------

@@ -83,3 +83,13 @@ def test_demo_invoice_triage_and_text():
     text = [l['text'] for l in m['lines']]
     assert 'Total due: USD 4,922.00' in text and 'شُكْرًا لِتَعامُلِكُم مَعَنا' in text
     assert m['report']['glyphs_unmapped'] == 0
+
+
+def test_docs_mirror_is_in_sync():
+    # the website must work whichever GitHub Pages source is chosen (/ or /docs): docs/ is an exact copy
+    import filecmp
+    files = ['preview.html', 'index.html', '.nojekyll', 'examples/demo-invoice.pdf']
+    for root, _, names in os.walk(f'{ROOT}/site'):
+        files += [os.path.relpath(os.path.join(root, n), ROOT) for n in names]
+    stale = [f for f in files if not os.path.exists(f'{ROOT}/docs/{f}') or not filecmp.cmp(f'{ROOT}/{f}', f'{ROOT}/docs/{f}', shallow=False)]
+    assert not stale, f'run examples/make_docs_mirror.py: {stale}'
