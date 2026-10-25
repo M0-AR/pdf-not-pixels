@@ -20,6 +20,11 @@ Open the page and list what it draws (step 1). A page whose only content is one 
 **scan**: there are no characters to read, and OCR is the right tool. Watch also for glyphs drawn in *invisible*
 mode (text render mode 3) over an image. That is an OCR layer someone else added, with their errors.
 
+A third case sits in between: **outlined text**. Layout programs can convert words to vector paths (often done
+for decorative headings or boxed text). Such a path is filled in the text colour, made of hundreds or thousands
+of curve segments, and has no characters behind it. The page looks like text, but only OCR (or matching the
+shapes against known glyphs) can read it.
+
 Everything else (PDFs exported from Word, LaTeX, InDesign, browsers, reporting tools) carries its content as
 instructions, and the rest of this method applies.
 

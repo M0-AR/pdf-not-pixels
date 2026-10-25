@@ -85,6 +85,8 @@ You do this once per font, not once per page, and the fix then applies to the wh
 - **Scanned documents.** If the page is one big image, there are no instructions to read. Check first: if
   `glyphs` is empty and `images` covers the page, it's a scan.
 - **Text inside images** (screenshots, photos, scanned figures).
+- **Outlined text:** words converted to vector paths by a layout program. They look like text but contain no
+  characters.
 - **Invisible OCR layers.** Some PDFs are scans with OCR text added in invisible mode. The tool marks these
   glyphs `mode: invisible`; their text is someone else's OCR, with its errors.
 
