@@ -35,7 +35,14 @@ PyMuPDF exposes the page's content stream as data:
 | `page.get_bboxlog()` | every drawing operation **in order** |
 
 Both text spans and paths carry a `seqno`, which is their index in the bbox log. Images don't, but you can find
-their `fill-image` entry in the log by matching boxes. With that, **every item on the page has its place in the
+their `fill-image` entry in the log by matching boxes. Match from the log to the images, not the other way
+round: a page can list images that are never painted (they serve as masks inside transparency effects), and
+those have no entry.
+
+Images come in two kinds:
+- **Image objects:** extract them with their soft mask (a separate greyscale image) as the alpha channel.
+- **Inline images:** written into the page content itself, with no object number.
+  `page.get_text('dict')` returns their bytes. With that, **every item on the page has its place in the
 drawing order**. You need it to redraw the page, and also to know what is hidden (step 4g).
 
 Keep the glyph id, not just the Unicode text. The glyph id names the *shape*. The Unicode is only the file's
@@ -53,8 +60,13 @@ glyph into an SVG path.
   - PDFs often drop the font's trailer (512 zeros and `cleartomark`), and the parser then fails. Append it.
   - Glyph ids follow the order of the CharStrings dictionary, with `.notdef` moved to id 0.
   - Verify this mapping on your files: the glyph names must agree with the Unicode the PDF claims.
-- **The 14 standard fonts, not embedded** (Times-Roman, Helvetica, …): the viewer supplies them.
-  `pymupdf.Font(name).buffer` is MuPDF's own copy, and the glyph ids in the trace refer to it.
+- **Fonts that are not embedded:** the viewer substitutes one of its standard fonts, and the glyph ids in the
+  trace refer to that substitute.
+  - A standard name (Times-Roman, Helvetica, ZapfDingbats, …) uses MuPDF's own copy, from
+    `pymupdf.Font(name).buffer`.
+  - Any other name (e.g. TimesNewRomanPSMT, Arial-Black) gets the closest standard family. Advance widths pick
+    the style.
+  - A dingbat font substituted by a text font draws the wrong symbols.
 - **Type 3** fonts define each glyph as a small PDF drawing program (CharProcs), so there is no outline font to
   read. They are common in charts made with matplotlib. You would have to interpret the glyph procedures as
   paths. `tools/` doesn't do this and falls back to drawing the text.
@@ -170,6 +182,10 @@ Compare the text before and after such a change across the whole document (step 
 ### 4g. Text that is in the file but not on the page
 
 - **Covered:** a filled shape drawn **later** over the text hides it.
+  - A shape's box says only that it *may* cover the text, because the shape can be irregular or clipped. Confirm
+    on the PDF's own rendering: the glyph is hidden only if most of its pixels show the covering shape's colour.
+  - Don't test for the text's own colour there, because another visible text may be drawn on top of the hidden
+    one.
   - Mark glyphs under a later opaque, one-outline fill as hidden. Count outlines rather than trusting the
     even-odd flag: one outline has no hole, while a frame with a hole doesn't cover its inside.
   - Hidden text left in the reading text is a classic source of garbage, such as old words interleaved with the

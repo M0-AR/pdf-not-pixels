@@ -96,7 +96,9 @@ reading the instructions is exact and much cheaper.
 It shows the method and is small on purpose (about 530 lines in all). It does not handle:
 - **Type 3 fonts:** glyphs defined as little drawing programs, common in matplotlib charts. They fall back to
   plain text.
-- **Clipping paths, shadings and gradients, blend modes, annotations and form fields.**
+- **Clipping paths, shadings and gradients, blend modes, soft masks, annotations and form fields.** Layout
+  programs build drop shadows and feathering from soft-masked, multiplied fills and images. Without the masks
+  these come out as solid dark shapes, so such pages look darker when rebuilt. Their text is not affected.
 - **Horizontal text scaling.**
 
 [METHOD.md](METHOD.md) explains how each of these fits in.

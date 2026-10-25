@@ -28,7 +28,7 @@ def render(model):
             a.append(f'stroke-opacity="{s["stroke_opacity"]}"')
         items.append((s['seq'], f'<path {" ".join(a)}/>'))
     for im in model['images']:
-        if im['file']:
+        if im['file'] and im.get('drawn', True):
             x0, y0, x1, y1 = im['bbox']
             items.append((im['seq'] if im['seq'] is not None else 1e9,
                           f'<image href="{im["file"]}" x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}" preserveAspectRatio="none"/>'))

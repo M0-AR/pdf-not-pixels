@@ -10,6 +10,7 @@ import argparse, io, json, os, re, tempfile, unicodedata
 from collections import Counter, defaultdict
 
 import pymupdf
+from PIL import Image
 from fontTools.cffLib import CFFFontSet
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.svgPathPen import SVGPathPen
@@ -144,6 +145,41 @@ class Outlines:
         return pen.getCommands()
 
 
+def save_image(pix, mask, out, name):
+    """Save an image as PNG; its transparency (a separate mask image in PDF) becomes the alpha channel."""
+    if pix.alpha:
+        pix = pymupdf.Pixmap(pix, 0)
+    if pix.n > 3:
+        pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
+    if mask is not None:
+        try:
+            if (mask.width, mask.height) != (pix.width, pix.height):
+                mask = pymupdf.Pixmap(mask, pix.width, pix.height, None)
+            pix = pymupdf.Pixmap(pix, mask)
+        except Exception:
+            pass                                    # keep the image without its mask rather than lose it
+    os.makedirs(f'{out}/images', exist_ok=True)
+    pix.save(f'{out}/{name}')
+    return name
+
+
+def substitutes(name):
+    """Standard fonts a viewer may use for a font that is not embedded."""
+    if name.lower() in pymupdf.Base14_fontdict:
+        return [name]
+    low = name.lower()
+    family = ('Times', ['Times-Roman', 'Times-Bold', 'Times-Italic', 'Times-BoldItalic'])
+    if 'courier' in low or 'mono' in low:
+        family = ('Courier', ['Courier', 'Courier-Bold', 'Courier-Oblique', 'Courier-BoldOblique'])
+    elif not any(w in low for w in ('times', 'roman', 'serif', 'georgia', 'garamond', 'book', 'minion')) or 'sans' in low:
+        family = ('Helvetica', ['Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique', 'Helvetica-BoldOblique'])
+    if 'symbol' in low:
+        return ['Symbol']
+    if 'dingbat' in low:
+        return ['ZapfDingbats']
+    return family[1]
+
+
 def spacing_error(prog, sp):
     """How far the font's advance widths are from the spacing of the span's glyphs on the page."""
     err, ux, uy = 0.0, *sp['dir']
@@ -175,25 +211,36 @@ def extract(pdf, pno, fixes=None, out=None):
             fill_opacity=r2(dr.get('fill_opacity') or 1), stroke_opacity=r2(dr.get('stroke_opacity') or 1),
             dashes=dr.get('dashes') if dr.get('dashes') not in (None, '[] 0') else None, seq=dr['seqno']))
         if fill is not None and (dr.get('fill_opacity') or 1) > 0.99 and outlines(dr['items']) == 1:
-            covers.append((dr['rect'], dr['seqno']))
+            covers.append((dr['rect'], dr['seqno'], hexcolor(fill)))
 
     # ---- images: position and drawing order (seqno = index in the page's bbox log) ----
     log = page.get_bboxlog()
     image_seqs = [i for i, (kind, _) in enumerate(log) if kind == 'fill-image']
-    for k, info in enumerate(page.get_image_info(xrefs=True)):
-        # the log entry drawn at the same place (each entry is used once)
-        seq = min(image_seqs, key=lambda i: sum(abs(a - b) for a, b in zip(log[i][1], info['bbox'])), default=None)
-        if seq is not None:
-            image_seqs.remove(seq)
-        img = dict(bbox=[r2(v) for v in info['bbox']], seq=seq, file=None)
-        if out and info.get('xref'):
+    inline = None                              # images written into the page itself (no object number)
+    infos = page.get_image_info(xrefs=True)
+    # Each image painted on the page has a 'fill-image' entry in the log, at the same place. Images with no entry
+    # are not painted: they serve as masks inside transparency effects. They are kept, marked drawn: false.
+    seqs = {}
+    for i in image_seqs:
+        free = [k for k in range(len(infos)) if k not in seqs]
+        if free:
+            k = min(free, key=lambda k: sum(abs(a - b) for a, b in zip(log[i][1], infos[k]['bbox'])))
+            seqs[k] = i
+    for k, info in enumerate(infos):
+        img = dict(bbox=[r2(v) for v in info['bbox']], seq=seqs.get(k), drawn=k in seqs, file=None)
+        if out and img['drawn']:
             try:
-                pix = pymupdf.Pixmap(doc, info['xref'])
-                if pix.n - pix.alpha > 3:
-                    pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
-                os.makedirs(f'{out}/images', exist_ok=True)
-                img['file'] = f'images/p{pno}-{k}.png'
-                pix.save(f'{out}/{img["file"]}')
+                if info.get('xref'):
+                    pix = pymupdf.Pixmap(doc, info['xref'])
+                    smask = doc.extract_image(info['xref']).get('smask')
+                    mask = pymupdf.Pixmap(doc, smask) if smask else None
+                else:
+                    if inline is None:
+                        inline = [b for b in page.get_text('dict')['blocks'] if b['type'] == 1]
+                    b = min(inline, key=lambda b: sum(abs(x - y) for x, y in zip(b['bbox'], info['bbox'])))
+                    pix = pymupdf.Pixmap(b['image'])
+                    mask = pymupdf.Pixmap(b['mask']) if b.get('mask') else None
+                img['file'] = save_image(pix, mask, out, f'images/p{pno}-{k}.png')
             except Exception:
                 pass
         model['images'].append(img)
@@ -203,11 +250,13 @@ def extract(pdf, pno, fixes=None, out=None):
     for f in page.get_fonts(full=True):
         xref, ext, basefont = f[0], f[1], f[3]
         try:
-            if ext == 'n/a' and basefont.lower() in pymupdf.Base14_fontdict:   # standard font, not embedded:
-                buf, ext = pymupdf.Font(basefont).buffer, 'cff'                 # use the viewer's own copy
-            else:
-                buf = doc.extract_font(xref)[3]
-            programs[norm(basefont)].append((xref, Outlines(ext, buf)))
+            if ext == 'n/a':
+                # not embedded: the viewer draws it with one of its standard fonts, and the glyph ids refer to
+                # that font. Offer the closest standard family; advance widths pick the style (spacing_error).
+                for sub in substitutes(basefont):
+                    programs[norm(basefont)].append((xref, Outlines('cff', pymupdf.Font(sub).buffer)))
+                continue
+            programs[norm(basefont)].append((xref, Outlines(ext, doc.extract_font(xref)[3])))
         except Exception:
             pass
 
@@ -251,10 +300,28 @@ def extract(pdf, pno, fixes=None, out=None):
     rep['glyphs_unmapped'] = sum(1 for g in model['glyphs'] if g['mode'] == 'fill' and (not g['text'] or '\ufffd' in g['text']))
     rep['glyphs_without_outline_font'] = sum(1 for g in model['glyphs'] if g['font_id'] is None)
 
-    # a glyph drawn before an opaque box that covers it is hidden: it stays in the data, marked, but not in the text
+    # A glyph drawn before an opaque shape that covers it is hidden: it stays in the data, marked, but not in the
+    # text. The shape's box only says it *may* cover the glyph (the shape can be irregular or clipped), so confirm
+    # on the PDF's own rendering: hidden only if most of the glyph's pixels show the covering shape's colour.
+    rgb = lambda h: tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
     for g in model['glyphs']:
         cx, cy = (g['bbox'][0] + g['bbox'][2]) / 2, (g['bbox'][1] + g['bbox'][3]) / 2
-        g['hidden'] = any(sq > g['seq'] and r.x0 < cx < r.x1 and r.y0 < cy < r.y1 for r, sq in covers)
+        over = [c for c in covers if c[1] > g['seq'] and c[0].x0 < cx < c[0].x1 and c[0].y0 < cy < c[0].y1]
+        g['hidden'] = bool(over) and bool(g['text'].strip())     # a space has no ink: never 'hidden'
+        g['_cover'] = max(over, key=lambda c: c[1])[2] if over else None
+    suspects = [g for g in model['glyphs'] if g['hidden'] and g['text'].strip()]
+    if suspects:
+        pix = page.get_pixmap(dpi=100)
+        img = Image.frombytes('RGB', (pix.width, pix.height), pix.samples)
+        sc = 100 / 72
+        for g in suspects:
+            x0, y0, x1, y1 = (int(v * sc) for v in g['bbox'])
+            cells = img.crop((x0, y0, max(x1, x0 + 1), max(y1, y0 + 1))).getcolors(1 << 16) or []
+            want = rgb(g['_cover'])
+            same = sum(n for n, col in cells if sum(abs(a - b) for a, b in zip(col, want)) < 40)
+            g['hidden'] = same >= 0.5 * sum(n for n, _ in cells)
+    for g in model['glyphs']:
+        del g['_cover']
     rep['glyphs_hidden'] = sum(g['hidden'] for g in model['glyphs'])
 
     model['lines'] = text_lines(model['glyphs'])
