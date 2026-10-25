@@ -6,7 +6,7 @@ PAGE is 1-based. Writes DIR/page-PAGE.json (default DIR: out/) and DIR/images/ f
 No OCR, no AI: everything is read from the PDF's own drawing instructions (PyMuPDF) and embedded fonts (fontTools).
 See METHOD.md for why each step is done this way.
 """
-import argparse, io, json, os, re, tempfile, unicodedata
+import argparse, io, json, logging, os, re, tempfile, unicodedata
 from collections import Counter, defaultdict
 
 import pymupdf
@@ -16,6 +16,8 @@ from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.t1Lib import T1Font
 from fontTools.ttLib import TTFont
+
+logging.getLogger('fontTools').setLevel(logging.ERROR)   # embedded subsets often have harmless table quirks
 
 RTL = re.compile('[֐-ࣿיִ-﷿ﹰ-ﻼ]')     # Hebrew, Arabic and their presentation forms
 LTR_RUN = re.compile(r'[A-Za-z0-9٠-٩۰-۹.,:/%\-]+')   # Latin words and digits inside RTL text

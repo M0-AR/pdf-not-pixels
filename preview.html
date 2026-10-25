@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pdf-not-pixels</title>
+<meta name="description" content="Get exact data out of PDFs by reading the file's own drawing instructions: no OCR, no AI guessing, no per-page fees.">
+<meta property="og:title" content="pdf-not-pixels: read the PDF, not the picture">
+<meta property="og:description" content="Exact text, layout, colours and hidden content from born-digital PDFs. Live demo, cost calculator and a zero-to-pro course.">
+<meta property="og:image" content="site/media/hero.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231d3557'/%3E%3Cpath d='M18 14h20l10 10v26H18z' fill='%23fff'/%3E%3Cpath d='M38 14v10h10' fill='%23e63946'/%3E%3Cpath d='M24 34h16M24 40h12' stroke='%232a9d8f' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f7f8fb; --surface: #ffffff; --surface-2: #eef1f7; --text: #14213d; --muted: #5b6475; --line: #dde2ec;
+  --brand: #1d3557; --accent: #e63946; --teal: #2a9d8f; --gold: #e9a23b; --ok: #1f9d55; --bad: #d64545;
+  --shadow: 0 10px 30px rgba(20, 33, 61, .08); --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1321; --surface: #151d2e; --surface-2: #1c2638; --text: #e8edf6; --muted: #a3adbf; --line: #2a3650;
+    --brand: #8fb3e8; --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1321; --surface: #151d2e; --surface-2: #1c2638; --text: #e8edf6; --muted: #a3adbf; --line: #2a3650;
+  --brand: #8fb3e8; --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", sans-serif; }
+a { color: var(--teal); }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
+nav.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+nav.top .wrap { display: flex; align-items: center; gap: 18px; height: 58px; }
+nav.top .logo { font-weight: 800; color: var(--text); text-decoration: none; display: flex; gap: 8px; align-items: center; white-space: nowrap; }
+nav.top .links { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: none; flex: 1; }
+nav.top .links a { color: var(--muted); text-decoration: none; font-size: 14px; white-space: nowrap; }
+nav.top .links a:hover { color: var(--text); }
+button, .btn { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); padding: 8px 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.btn.dark { background: var(--brand); border-color: var(--brand); color: var(--bg); font-weight: 700; }
+button.on { background: var(--brand); color: var(--bg); border-color: var(--brand); }
+section { padding: 72px 0; border-bottom: 1px solid var(--line); }
+section h2 { font-size: clamp(26px, 4vw, 36px); line-height: 1.2; margin: 0 0 10px; }
+.kicker { text-transform: uppercase; letter-spacing: .12em; font-size: 12px; font-weight: 700; color: var(--accent); }
+.lead { font-size: 19px; color: var(--muted); max-width: 760px; }
+.grid { display: grid; gap: 18px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+.g4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.card h3 { margin: 0 0 6px; font-size: 18px; }
+.card p { margin: 0; color: var(--muted); }
+.hero { padding: 64px 0 56px; }
+.hero h1 { font-size: clamp(36px, 6.4vw, 66px); line-height: 1.04; margin: 10px 0 16px; letter-spacing: -.02em; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero .cta { display: flex; gap: 12px; flex-wrap: wrap; margin: 24px 0 28px; }
+.hero-media { border-radius: 18px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: #fff; }
+.hero-media video, .hero-media img { display: block; width: 100%; height: auto; }
+.stat .n { font-size: 34px; font-weight: 800; line-height: 1.1; color: var(--brand); }
+.stat .l { color: var(--muted); font-size: 14px; }
+.summary { font-size: 18px; }
+.summary li { margin: 6px 0; }
+.vs { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.vs .card.bad { border-top: 5px solid var(--bad); }
+.vs .card.good { border-top: 5px solid var(--ok); }
+.vs ul { margin: 10px 0 0; padding-left: 20px; color: var(--muted); }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: var(--surface-2); border-radius: 10px; padding: 12px; overflow-x: auto; white-space: pre; color: var(--text); }
+/* live demo */
+.demo { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.stage { background: #fff; border-radius: 14px; border: 1px solid var(--line); overflow: hidden; position: relative; }
+.stage svg { display: block; width: 100%; height: auto; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+.toolbar button { font-size: 14px; padding: 7px 12px; }
+.panel { display: grid; gap: 14px; }
+.inspector dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0 0; font-size: 14px; }
+.inspector dt { color: var(--muted); }
+.inspector dd { margin: 0; font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
+.textout { max-height: 300px; overflow: auto; font-size: 14px; background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+.textout p { margin: 2px 0; }
+.alert { border-radius: 12px; padding: 12px 14px; background: color-mix(in srgb, var(--bad) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--line)); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.hit { fill: transparent; cursor: pointer; }
+.xray .hit.t { fill: rgba(29, 120, 255, .16); stroke: rgba(29, 120, 255, .7); stroke-width: .4; }
+.xray .hit.h { fill: rgba(214, 69, 69, .28); stroke: #d64545; stroke-width: .8; }
+.xray .box.s { fill: none; stroke: #e9a23b; stroke-width: .8; stroke-dasharray: 3 2; }
+.xray .box.i { fill: rgba(42, 157, 143, .18); stroke: #2a9d8f; stroke-width: 1.2; }
+.box { display: none; } .xray .box { display: inline; }
+.sel { stroke: var(--accent) !important; stroke-width: 1.2 !important; fill: rgba(230, 57, 70, .18) !important; }
+.flash { animation: flash 1.2s ease-in-out 2; }
+@keyframes flash { 50% { opacity: .2; } }
+/* calculator */
+.calc label { font-weight: 600; display: block; margin-bottom: 6px; }
+.calc input[type=range] { width: 100%; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.us td { background: color-mix(in srgb, var(--ok) 10%, var(--surface)); font-weight: 700; }
+.tablewrap { overflow-x: auto; }
+.small { font-size: 13px; color: var(--muted); }
+/* steps */
+.steps { counter-reset: s; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.steps .card { position: relative; padding-top: 44px; }
+.steps .card::before { counter-increment: s; content: counter(s); position: absolute; top: 14px; left: 18px; width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: var(--bg); font-weight: 800; font-size: 13px; display: grid; place-items: center; }
+.story { border-left: 4px solid var(--teal); }
+.story .who { font-weight: 700; color: var(--text); }
+/* academy */
+.academy { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 18px; align-items: start; }
+.levels { display: grid; gap: 8px; }
+.levels button { justify-content: space-between; width: 100%; text-align: left; }
+.levels button .tick { color: var(--ok); font-weight: 800; }
+.progress { height: 10px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 6px 0 2px; }
+.progress div { height: 100%; width: 0; background: linear-gradient(90deg, var(--teal), var(--brand)); transition: width .4s; }
+.lesson h3 { margin-top: 0; font-size: 22px; }
+.lesson .body p { margin: 0 0 10px; }
+.q { border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin: 14px 0; background: var(--surface-2); }
+.q .ask { font-weight: 700; margin-bottom: 8px; }
+.q .opts { display: grid; gap: 8px; }
+.q .opts button { justify-content: flex-start; text-align: left; background: var(--surface); }
+.q .opts button.right { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, var(--surface)); }
+.q .opts button.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 13%, var(--surface)); }
+.q .why { margin-top: 8px; font-size: 14px; color: var(--muted); display: none; }
+.q.done .why { display: block; }
+.cert { text-align: center; padding: 26px; border: 2px dashed var(--gold); border-radius: 18px; background: color-mix(in srgb, var(--gold) 9%, var(--surface)); }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin: 10px 0; }
+summary { cursor: pointer; font-weight: 700; }
+footer { padding: 40px 0 60px; color: var(--muted); font-size: 14px; }
+@media (max-width: 860px) {
+  .demo, .academy, .vs { grid-template-columns: 1fr; }
+  nav.top .links { display: none; }
+  section { padding: 52px 0; }
+}
+</style>
+</head>
+<body>
+<nav class="top" aria-label="Main">
+  <div class="wrap">
+    <a class="logo" href="#top">📄 pdf-not-pixels</a>
+    <div class="links">
+      <a href="#summary">Summary</a><a href="#demo">Live demo</a><a href="#cost">Cost</a><a href="#uses">Use cases</a>
+      <a href="#how">How it works</a><a href="#proof">Proof</a><a href="#academy">Academy</a><a href="#faq">FAQ</a>
+    </div>
+    <button id="theme" title="Switch light / dark" aria-label="Switch light or dark theme">🌓</button>
+    <a class="btn dark repo-link" href="#">GitHub</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap grid g2" style="align-items:center">
+    <div>
+      <div class="kicker">Document data · exact by design</div>
+      <h1>Read the PDF,<br><em>not the picture</em> of it.</h1>
+      <p class="lead">Most PDFs already contain every word, number and colour as exact data. pdf-not-pixels reads that data
+        directly, so nothing is guessed. You get text, layout, colours and even <b>hidden text</b>, with no OCR, no AI
+        and no per-page fees.</p>
+      <div class="cta">
+        <a class="btn primary" href="#demo">▶ Try the live demo</a>
+        <a class="btn" href="#cost">💰 See what it saves</a>
+        <a class="btn" href="#academy">🌱 Learn it from zero</a>
+      </div>
+      <div class="grid g3">
+        <div class="stat"><div class="n">0</div><div class="l">characters guessed: all are read from the file</div></div>
+        <div class="stat"><div class="n">$0</div><div class="l">per-page fees: it runs on your own computers</div></div>
+        <div class="stat"><div class="n">1.7</div><div class="l">pages per second on a single CPU core (measured)</div></div>
+      </div>
+    </div>
+    <div class="hero-media">
+      <video src="site/media/demo.mp4" poster="site/media/hero.png" autoplay muted loop playsinline aria-label="Demo: a PDF page rebuilt from its data, X-rayed, its hidden text revealed"></video>
+    </div>
+  </div>
+</header>
+
+<section id="summary">
+  <div class="wrap grid g2">
+    <div>
+      <div class="kicker">Executive summary</div>
+      <h2>The short version</h2>
+      <ul class="summary">
+        <li><b>The problem:</b> companies pay OCR and AI services to <i>re-read</i> PDFs from pictures. Those services guess, make small errors, and charge for every page.</li>
+        <li><b>The insight:</b> a PDF made by software (Word, Excel, InDesign, LaTeX, a billing system) is not a picture. It is a list of exact drawing instructions, and the text is already in it.</li>
+        <li><b>The product:</b> pdf-not-pixels reads those instructions and turns every page into clean, structured data. It gives every character, number, colour and position, in reading order, including right-to-left languages.</li>
+        <li><b>The proof:</b> it rebuilds each page from the extracted data alone, and checks it against the original in a browser. On real documents the rebuilt pages match the originals at 0.97–0.997 similarity.</li>
+        <li><b>The bonus:</b> it finds text that is in the file but invisible on the page, such as a "redaction" done with a black box. That is a privacy and legal risk most tools miss.</li>
+      </ul>
+    </div>
+    <div class="grid" style="align-content:start">
+      <div class="card"><h3>Who buys this</h3><p>Finance and accounts payable, legal and compliance, publishers and education, AI teams building search or chat over documents, archives and data teams.</p></div>
+      <div class="card"><h3>Why now</h3><p>Every team is feeding documents to AI. Exact input text means fewer wrong answers and no OCR bill for files that never needed OCR.</p></div>
+      <div class="card"><h3>Honest limits</h3><p>Scanned paper has no instructions to read. For scans you still need OCR, and the built-in triage tells you exactly which pages those are.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="idea">
+  <div class="wrap">
+    <div class="kicker">The idea in one picture</div>
+    <h2>A PDF is a recipe, not a photo</h2>
+    <p class="lead">Think of a cake. OCR looks at a <b>photo</b> of the cake and guesses the recipe. pdf-not-pixels opens the
+      <b>recipe book</b>, because for most PDFs it is right there inside the file.</p>
+    <div class="vs" style="margin-top:22px">
+      <div class="card bad"><h3>❌ OCR and vision AI: look at pixels</h3>
+        <ul><li>Turns the page into an image, then guesses each letter</li><li>Confuses look-alike letters, loses accents and diacritics, misreads numbers</li>
+          <li>Pays per page, often per feature</li><li>Cannot see what is hidden under a box</li><li>A different result each time the model changes</li></ul></div>
+      <div class="card good"><h3>✅ pdf-not-pixels: read the instructions</h3>
+        <ul><li>Reads the file's own drawing instructions</li><li>Every character comes from the file with its font, size, colour and position</li>
+          <li>Runs locally: no per-page fees, and the data never leaves your machines</li><li>Detects hidden and invisible text</li><li>Same file in, same data out, every time</li></ul></div>
+    </div>
+    <p style="margin-top:22px">Inside a PDF, a page looks like this:</p>
+    <div class="code">draw glyph 57 of font F2, size 12, at (151.8, 178.6), colour #c00000
+fill this path with #3373b2
+draw image 3 in the box (420, 320, 540, 380)
+draw glyph 58 …</div>
+  </div>
+</section>
+
+<section id="demo">
+  <div class="wrap">
+    <div class="kicker">Live demo · runs in your browser</div>
+    <h2>Take an invoice apart</h2>
+    <p class="lead">The page below is <b>not an image</b>. Your browser draws it from the data that pdf-not-pixels
+      extracted from <a href="examples/demo-invoice.pdf">this PDF invoice</a>. Click any character to inspect it, X-ray
+      the page, or find out what the black box is hiding.</p>
+    <div class="toolbar" role="toolbar" aria-label="Demo controls">
+      <button data-mode="normal" class="on">📄 Rebuilt page</button>
+      <button data-mode="xray">🩻 X-ray</button>
+      <button id="reveal">🔓 Reveal hidden text</button>
+      <button id="recolor">🎨 Recolour the total</button>
+      <button id="reset">↺ Reset</button>
+    </div>
+    <div class="demo">
+      <div>
+        <div class="stage" id="stage" aria-label="Invoice rebuilt from extracted data"></div>
+        <div class="legend" style="margin-top:10px">
+          <span><i style="background:rgba(29,120,255,.45)"></i>text</span><span><i style="background:#e9a23b"></i>vector shapes</span>
+          <span><i style="background:#2a9d8f"></i>images</span><span><i style="background:#d64545"></i>hidden text</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div id="hiddenbox" class="alert" hidden></div>
+        <div class="card inspector"><h3>🔎 Inspector</h3><p id="hint">Click any character on the page.</p><dl id="insp"></dl></div>
+        <div class="card"><h3>📊 What was extracted</h3><div id="stats" class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;font-size:14px;line-height:1.3"></div></div>
+        <div class="card"><h3>📝 Text, in reading order</h3><div class="textout" id="textout"></div>
+          <p class="small" style="margin-top:8px">Full data: <a href="site/demo/page-1.json">page-1.json</a> · the same page as plain SVG: <a href="site/demo/page-1.svg">page-1.svg</a></p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="cost">
+  <div class="wrap">
+    <div class="kicker">Business value</div>
+    <h2>What it costs, compared</h2>
+    <p class="lead">List prices of popular cloud document services, from each vendor's official pricing page (checked
+      October 2026). Move the sliders to your own volume. Triage first: pay for OCR only on the pages that really are scans.</p>
+    <div class="grid g2 calc" style="margin:20px 0">
+      <div class="card"><label for="pages">Pages per month: <span id="pagesOut"></span></label>
+        <input id="pages" type="range" min="0" max="100" value="50" aria-describedby="pagesOut"></div>
+      <div class="card"><label for="scan">Share of pages that are real scans: <span id="scanOut"></span></label>
+        <input id="scan" type="range" min="0" max="100" value="10" aria-describedby="scanOut">
+        <p class="small">Scans have no text inside; they still need OCR. Everything else is read exactly, for free.</p></div>
+    </div>
+    <div class="card tablewrap"><table id="costTable" aria-label="Monthly cost comparison"></table></div>
+    <p class="small">"Triage + OCR on scans only" uses the cheapest OCR line above for the scanned share. Compute for
+      pdf-not-pixels itself: 1 million pages ≈ 163 CPU-core hours (measured at 1.7 pages per second per core),
+      on hardware you already have. Volume discounts and free tiers are not included. Sources:
+      <a href="https://aws.amazon.com/textract/pricing/">AWS Textract</a> ·
+      <a href="https://cloud.google.com/document-ai/pricing">Google Document AI</a> ·
+      <a href="https://azure.microsoft.com/en-us/pricing/details/ai-document-intelligence/">Azure Document Intelligence</a> ·
+      <a href="https://mistral.ai/news/ocr-4/">Mistral OCR</a> ·
+      <a href="https://developers.llamaindex.ai/llamaparse/general/pricing/">LlamaParse</a>.</p>
+  </div>
+</section>
+
+<section id="uses">
+  <div class="wrap">
+    <div class="kicker">Use cases</div>
+    <h2>Who uses it, and for what</h2>
+    <div class="grid g3" style="margin-top:20px">
+      <div class="card story"><p class="who">💼 Accounts payable</p><p>"As a finance lead, I want invoice totals read <b>exactly</b> from supplier PDFs, so that no payment is ever based on a misread digit."</p></div>
+      <div class="card story"><p class="who">⚖️ Legal and compliance</p><p>"As a compliance officer, I want every outgoing PDF checked for <b>hidden text</b> under black boxes, so that a bad redaction never leaks a client's secret."</p></div>
+      <div class="card story"><p class="who">🤖 AI and search teams</p><p>"As an AI engineer, I want clean text with layout from thousands of PDFs, so that our chatbot answers from the real words, without an OCR bill."</p></div>
+      <div class="card story"><p class="who">📚 Publishers and education</p><p>"As a publisher, I want books turned into accessible, searchable data with every Arabic or Hebrew diacritic intact, so that readers and screen readers get the exact text."</p></div>
+      <div class="card story"><p class="who">🗄️ Archives and data teams</p><p>"As a data manager, I want to know which of our 2 million PDFs are real scans, so that we send only those to OCR and save the rest of the budget."</p></div>
+      <div class="card story"><p class="who">🎨 Design and localisation</p><p>"As a designer, I want to rebuild a page as editable SVG, so that I can recolour, restyle or translate it without starting from scratch."</p></div>
+      <div class="card story"><p class="who">🧪 Quality assurance</p><p>"As a QA engineer, I want two versions of a report compared character by character, so that I know exactly what changed."</p></div>
+      <div class="card story"><p class="who">♿ Accessibility</p><p>"As an accessibility lead, I want the true reading order of every page, including right-to-left text, so that screen readers read it in the right order."</p></div>
+      <div class="card story"><p class="who">🏛️ Government and records</p><p>"As a records officer, I want documents processed on our own servers, so that sensitive files never go to a cloud service."</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="kicker">How it works</div>
+    <h2>Six steps, no guessing</h2>
+    <div class="steps" style="margin-top:20px">
+      <div class="card"><h3>Triage</h3><p>Sort pages: real text, image-only (a scan), or words turned into shapes. Only scans need OCR.</p></div>
+      <div class="card"><h3>Read the instructions</h3><p>List every glyph, shape and image the page draws, in drawing order, with exact positions and colours.</p></div>
+      <div class="card"><h3>Get the real shapes</h3><p>Take each glyph's outline from the fonts embedded in the file, so the page can be redrawn exactly.</p></div>
+      <div class="card"><h3>Rebuild and compare</h3><p>Redraw the page from the data alone and compare it with the original, pixel by pixel.</p></div>
+      <div class="card"><h3>Get the text right</h3><p>Reading order, right-to-left scripts, accents attached to the right letter, spaces, hidden text.</p></div>
+      <div class="card"><h3>Repair what the file gets wrong</h3><p>Some files name a letter wrongly. The shape never lies: fix it once per font, for the whole document.</p></div>
+    </div>
+    <p style="margin-top:22px">Four commands do it all:</p>
+    <div class="code">python3 tools/triage.py  invoice.pdf                 # which pages have text, which are scans, any hidden text?
+python3 tools/extract.py invoice.pdf 1 --out out     # page 1 -> out/page-1.json (every glyph, shape, image, the text)
+python3 tools/render.py  out/page-1.json             # rebuild the page as SVG from the data alone
+python3 tools/check.py   invoice.pdf 1 out/page-1.svg  # how close is the rebuild to the original? (1.0 = identical)</div>
+  </div>
+</section>
+
+<section id="proof">
+  <div class="wrap">
+    <div class="kicker">Proof</div>
+    <h2>Measured, not promised</h2>
+    <div class="card tablewrap" style="margin-top:18px"><table>
+      <tr><th>Document</th><th>What is in it</th><th>Result</th></tr>
+      <tr><td>Demo invoice (this page)</td><td>English + Arabic with diacritics, table, logo, chart, a "redacted" note</td><td>Rebuilt at <b>0.9968</b> similarity · all text exact · hidden note found</td></tr>
+      <tr><td>Sample report</td><td>English + Arabic, colours, vector chart, image, text under a box</td><td>Rebuilt at <b>0.9985</b> · hidden sentence found</td></tr>
+      <tr><td>19-page research paper (LaTeX)</td><td>Classic PostScript fonts, maths, figures, a rotated margin stamp</td><td>Every page rebuilt from its own glyph outlines · <b>0.976–0.997</b></td></tr>
+      <tr><td>Speed</td><td>The 19-page paper, 46,644 glyphs</td><td><b>1.7 pages/s</b> on one CPU core</td></tr>
+    </table></div>
+    <div class="grid g2" style="margin-top:18px">
+      <figure class="card" style="margin:0"><img src="site/media/xray.png" alt="The demo invoice in X-ray mode: every character, shape and image outlined" style="width:100%;border-radius:10px"><figcaption class="small" style="margin-top:8px">X-ray: every character (blue), shape (orange), image (green) and hidden text (red).</figcaption></figure>
+      <figure class="card" style="margin:0"><img src="site/media/check.png" alt="Rebuilt page, original page and their difference side by side" style="width:100%;border-radius:10px"><figcaption class="small" style="margin-top:8px">Rebuilt from data | original PDF | difference (almost empty = almost identical).</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="wrap grid g2">
+    <div>
+      <div class="kicker">When you still need OCR</div>
+      <h2>Honest about the limits</h2>
+      <p class="lead">Use the right tool for each page. The triage step tells you which pages are which.</p>
+    </div>
+    <div class="grid">
+      <div class="card"><h3>📷 Scans and photos</h3><p>A page that is one big picture has no instructions to read. Use OCR, and only for those pages.</p></div>
+      <div class="card"><h3>🔷 Words turned into shapes</h3><p>Some design tools convert headings into vector shapes. They look like text but contain no letters.</p></div>
+      <div class="card"><h3>✨ Visual effects</h3><p>Soft shadows and feathering (transparency effects) are not redrawn yet. Pages with them look a little darker when rebuilt, but their text is unaffected.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="academy">
+  <div class="wrap">
+    <div class="kicker">🌱 Academy · zero to pro</div>
+    <h2>Learn it all, step by step</h2>
+    <p class="lead">Five short levels. Each has a 1-minute lesson and a quick quiz with instant explanations.
+      Finish all five and you will understand PDF data better than most interview candidates.</p>
+    <div class="progress" aria-hidden="true"><div id="bar"></div></div>
+    <p class="small" id="progressText"></p>
+    <div class="academy" style="margin-top:14px">
+      <div class="levels" id="levels"></div>
+      <div class="card lesson" id="lesson"></div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="kicker">FAQ</div>
+    <h2>Questions people ask</h2>
+    <details><summary>Is this OCR?</summary><p>No. OCR looks at a picture and guesses letters. This reads the letters that are already stored in the file, the same ones your PDF viewer uses to draw the page.</p></details>
+    <details><summary>Does it use AI?</summary><p>No. Every result comes from the file itself, so the same file always gives the same data. You can feed the exact text to an AI afterwards, and it will answer from the real words.</p></details>
+    <details><summary>Does my data leave my computer?</summary><p>No. It runs on your own machine or server. There is no cloud service and no per-page fee.</p></details>
+    <details><summary>Which PDFs does it work on?</summary><p>Any PDF made by software: Word, Excel, Google Docs, InDesign, LaTeX, browsers, billing and reporting systems. Scanned paper needs OCR; the triage tool finds those pages for you.</p></details>
+    <details><summary>Does it handle Arabic, Hebrew and other right-to-left scripts?</summary><p>Yes. Text comes out in reading order, with each diacritic attached to the right letter. The demo invoice above includes an Arabic line.</p></details>
+    <details><summary>What if the file itself names a letter wrongly?</summary><p>That happens: some files say a glyph is one letter when it is another. The glyph sheet tool draws every glyph next to its claimed letter, you correct it once per font, and the fix applies to the whole document.</p></details>
+    <details><summary>Can I use it commercially?</summary><p>Yes. It is MIT licensed: use it, change it and sell products built on it. Keep the license notice.</p></details>
+    <details><summary>How do I know the output is right?</summary><p>Every page can be rebuilt from the extracted data and compared with the original. The score shows how close they are, and a side-by-side image shows where they differ.</p></details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap grid g2">
+    <div><b>pdf-not-pixels</b> · read the PDF, not the picture.<br>MIT licensed. Exact data from born-digital PDFs.</div>
+    <div style="text-align:right"><a class="repo-link" href="#">Source on GitHub</a> · <a href="#top">Back to top ↑</a></div>
+  </div>
+</footer>
+
+<script>
+const REPO = 'https://github.com/M0-AR/pdf-not-pixels';
+document.querySelectorAll('.repo-link').forEach(a => a.href = REPO);
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+
+// ---------- theme ----------
+$('theme').onclick = () => {
+  const dark = document.documentElement.dataset.theme === 'dark' ||
+    (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+};
+
+// ---------- live demo: draw the page from its extracted data ----------
+let model = null, mode = 'normal', revealed = false, recolored = false, selected = null;
+function draw() {
+  const p = model.page, defs = [], items = [], over = [];
+  for (const [fid, f] of Object.entries(model.fonts))
+    for (const [gid, d] of Object.entries(f.glyphs)) if (d) defs.push(`<path id="${fid}-${gid}" d="${d}"/>`);
+  for (const s of model.shapes) {
+    let a = `d="${s.d}" fill="${s.fill || 'none'}" stroke="${s.stroke || 'none'}"`;
+    if (s.stroke) a += ` stroke-width="${s.width}"`;
+    if (s.even_odd) a += ' fill-rule="evenodd"';
+    if (s.fill_opacity < 1) a += ` fill-opacity="${s.fill_opacity}"`;
+    items.push([s.seq, `<path ${a}/>`]);
+  }
+  model.images.forEach(im => {
+    if (!im.file || im.drawn === false) return;
+    const [x0, y0, x1, y1] = im.bbox;
+    items.push([im.seq ?? 1e9, `<image href="site/demo/${im.file}" x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" preserveAspectRatio="none"/>`]);
+    over.push(`<rect class="box i" x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}"/>`);
+  });
+  const total = totalSpan();
+  model.glyphs.forEach((g, i) => {
+    if (g.mode !== 'fill' && g.mode !== 'stroke') return;
+    const f = g.font_id && model.fonts[g.font_id];
+    if (!f || !f.glyphs[String(g.gid)]) return;
+    const k = g.size / f.units_per_em, [ux, uy] = g.dir;
+    let color = g.color;
+    if (recolored && g.span === total) color = '#7b2cbf';
+    const m = `matrix(${k * ux} ${k * uy} ${k * uy} ${-k * ux} ${g.x} ${g.y})`;
+    // hidden glyphs stay below the box that covers them, unless "reveal" lifts them on top
+    const svg = `<use href="#${g.font_id}-${g.gid}" transform="${m}" fill="${g.hidden && revealed ? '#ff4d4d' : color}"/>`;
+    items.push([g.hidden && revealed ? 1e9 : g.seq, svg]);
+  });
+  model.glyphs.forEach((g, i) => {
+    if (!g.text.trim() || g.mode === 'invisible') return;
+    const [x0, y0, x1, y1] = g.bbox, w = Math.max(x1 - x0, 1.5);
+    over.push(`<rect class="hit ${g.hidden ? 'h' : 't'}${selected === i ? ' sel' : ''}" data-i="${i}" x="${x0}" y="${y0}" width="${w}" height="${y1 - y0}"/>`);
+  });
+  model.shapes.forEach(s => { if (s.fill || s.stroke) {
+    const b = bboxOf(s.d); if (b) over.push(`<rect class="box s" x="${b[0]}" y="${b[1]}" width="${b[2] - b[0]}" height="${b[3] - b[1]}"/>`); } });
+  items.sort((a, b) => a[0] - b[0]);
+  $('stage').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${p.width} ${p.height}" class="${mode === 'xray' ? 'xray' : ''}">` +
+    `<rect width="100%" height="100%" fill="#fff"/><defs>${defs.join('')}</defs>${items.map(x => x[1]).join('')}<g>${over.join('')}</g></svg>`;
+  $('stage').querySelectorAll('.hit').forEach(r => r.addEventListener('click', () => inspect(+r.dataset.i)));
+}
+function bboxOf(d) {
+  const n = (d.match(/-?\d+(\.\d+)?/g) || []).map(Number); if (n.length < 2) return null;
+  const xs = [], ys = []; for (let i = 0; i + 1 < n.length; i += 2) { xs.push(n[i]); ys.push(n[i + 1]); }
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+function totalSpan() {
+  const g = model.glyphs.find(g => g.text === 'T' && model.glyphs[model.glyphs.indexOf(g) + 1]?.text === 'o' && g.color === '#2a9d8f');
+  return g ? g.span : -1;
+}
+function inspect(i) {
+  selected = i; const g = model.glyphs[i];
+  const run = model.glyphs.filter(x => x.span === g.span).map(x => x.text).join('');
+  $('hint').textContent = g.hidden ? '⚠️ This character is in the file but hidden on the page.' : 'One character, exactly as the file stores it:';
+  $('insp').innerHTML = [
+    ['Character', `“${esc(g.text)}”  (U+${[...g.text].map(c => c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')).join(' U+')})`],
+    ['Font', esc(g.font)], ['Size', g.size + ' pt'], ['Colour', `<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${g.color};vertical-align:-1px"></span> ${g.color}`],
+    ['Position', `x ${g.x}, y ${g.y} (points from top-left)`], ['Drawing step', '#' + g.seq + ' of the page'],
+    ['Glyph id', g.gid + ' (the shape inside the font)'], ['Hidden', g.hidden ? 'yes: a shape is drawn over it' : 'no'],
+    ['Its text run', esc(run.length > 80 ? run.slice(0, 80) + '…' : run)]
+  ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  draw();
+}
+function textOut() {
+  const lines = {};
+  for (const r of model.lines) (lines[r.line] = lines[r.line] || []).push(r);
+  $('textout').innerHTML = Object.values(lines).map(runs => {
+    const rtl = runs[0].direction === 'rtl';
+    runs.sort((a, b) => rtl ? b.bbox[2] - a.bbox[2] : a.bbox[0] - b.bbox[0]);
+    return `<p dir="${rtl ? 'rtl' : 'ltr'}">` + runs.map(r => `<span style="color:${r.color === '#ffffff' ? 'inherit' : r.color}">${esc(r.text)}</span>`).join(' ') + '</p>';
+  }).join('');
+  const hidden = model.glyphs.filter(g => g.hidden);
+  const c = (k, v) => `<div><b style="font-size:20px">${v}</b><br><span class="small">${k}</span></div>`;
+  $('stats').innerHTML = c('characters (glyphs)', model.glyphs.filter(g => g.text.trim()).length) + c('vector shapes', model.shapes.length) +
+    c('images', model.images.filter(i => i.drawn !== false).length) + c('text runs', model.lines.length) +
+    c('fonts', Object.keys(model.fonts).length) + c('hidden characters', hidden.filter(g => g.text.trim()).length);
+}
+function hiddenText() {
+  let out = '', prev = null;
+  for (const g of model.glyphs.filter(g => g.hidden)) {
+    if (prev && (Math.abs(g.y - prev.y) > g.size / 2 || g.bbox[0] - prev.bbox[2] > 0.2 * g.size)) out += ' ';
+    out += g.text; prev = g;
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode; document.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === b)); draw();
+});
+$('reveal').onclick = () => {
+  revealed = !revealed; $('reveal').classList.toggle('on', revealed);
+  const box = $('hiddenbox'); box.hidden = !revealed;
+  box.innerHTML = `<b>Hidden text found under the black box:</b><br>“${esc(hiddenText())}”<br><span class="small">Anyone who copies the text, or any AI that reads the file, can see this. A real redaction removes the words, not just covers them.</span>`;
+  draw();
+};
+$('recolor').onclick = () => { recolored = !recolored; $('recolor').classList.toggle('on', recolored); draw(); };
+$('reset').onclick = () => {
+  mode = 'normal'; revealed = recolored = false; selected = null; $('hiddenbox').hidden = true;
+  document.querySelectorAll('.toolbar button').forEach(b => b.classList.toggle('on', b.dataset.mode === 'normal'));
+  $('insp').innerHTML = ''; $('hint').textContent = 'Click any character on the page.'; draw();
+};
+fetch('site/demo/page-1.json').then(r => r.json()).then(m => { model = m; draw(); textOut(); document.body.dataset.ready = '1'; })
+  .catch(() => { $('stage').innerHTML = '<p style="padding:20px">The demo needs to be served over http(s), e.g. GitHub Pages or <code>python3 -m http.server</code>.</p>'; });
+
+// ---------- cost calculator (list prices per 1,000 pages, official pages, Oct 2026) ----------
+const SERVICES = [
+  ['AWS Textract · plain text', 1.5], ['AWS Textract · tables', 15], ['AWS Textract · forms + tables + queries', 70],
+  ['Google Document AI · Enterprise OCR', 1.5], ['Google Document AI · Layout Parser', 10], ['Google Document AI · Form Parser', 30],
+  ['Azure Document Intelligence · Read', 1.5], ['Azure Document Intelligence · Layout', 10],
+  ['Mistral OCR', 4], ['LlamaParse · Fast (1 credit/page)', 1.25], ['LlamaParse · Agentic (10 credits/page)', 12.5]
+];
+const volumes = n => Math.round(Math.pow(10, 3 + n / 100 * 4));      // 1,000 .. 10,000,000
+const money = v => v >= 1e6 ? '$' + (v / 1e6).toFixed(2) + 'M' : v >= 1000 ? '$' + Math.round(v).toLocaleString('en-US') : '$' + v.toFixed(2);
+function calc() {
+  const pages = volumes(+$('pages').value), scan = +$('scan').value / 100;
+  $('pagesOut').textContent = pages.toLocaleString('en-US'); $('scanOut').textContent = Math.round(scan * 100) + '%';
+  const cheapest = Math.min(...SERVICES.map(s => s[1]));
+  const rows = SERVICES.map(([n, p]) => [n, p, pages / 1000 * p, pages / 1000 * p * 12]);
+  const ours = pages * scan / 1000 * cheapest;
+  $('costTable').innerHTML = '<tr><th>Approach</th><th class="num">Per 1,000 pages</th><th class="num">Per month</th><th class="num">Per year</th></tr>' +
+    rows.map(r => `<tr><td>${r[0]}</td><td class="num">$${r[1].toFixed(2)}</td><td class="num">${money(r[2])}</td><td class="num">${money(r[3])}</td></tr>`).join('') +
+    `<tr class="us"><td>pdf-not-pixels · triage + OCR on scans only</td><td class="num">$0 on text pages</td><td class="num">${money(ours)}</td><td class="num">${money(ours * 12)}</td></tr>`;
+}
+$('pages').oninput = $('scan').oninput = calc; calc();
+
+// ---------- academy ----------
+const LEVELS = [
+  { t: 'What a PDF really is', body: [
+    'A PDF made by software is like a <b>recipe</b>: a list of instructions such as "draw the letter A here, in this font, this size, this colour". Your PDF viewer follows the recipe to paint the page.',
+    'OCR works from a <b>photo</b> of the result and guesses the recipe back. If the recipe is already in the file, guessing is a waste of money and a source of errors.',
+    'Two kinds of PDF exist: <b>born-digital</b> (made by software, with the recipe inside) and <b>scanned</b> (a photo of paper, with no recipe). Most business PDFs are born-digital.'],
+    qs: [
+      ['A supplier sends an invoice exported from their billing software. What is inside the PDF?', ['A photo of the invoice', 'The exact text, as drawing instructions', 'Only the layout, no text'], 1, 'Software-made PDFs store every character as an instruction. Nothing needs to be guessed.'],
+      ['When do you really need OCR?', ['For every PDF', 'Only for scans and photos, where the page is a picture', 'Never'], 1, 'A scan is a picture of paper: there are no characters inside, so OCR is the right tool. The triage step finds those pages.']]},
+  { t: 'Glyphs, fonts and the letter map', body: [
+    'Each drawn letter is a <b>glyph</b>: a shape inside a font, picked by a number called the <b>glyph id</b>. The page says "draw glyph 57 of font F2".',
+    'Fonts are <b>embedded</b> in the PDF, so the exact shape of every glyph is available. That lets us redraw the page precisely, with no font installed.',
+    'A separate <b>letter map</b> (called ToUnicode) says which letter each glyph means. Sometimes it is wrong or missing. The shape is always right, so we fix the map by looking at the shapes, once per font.'],
+    qs: [
+      ['What is a glyph id?', ['The page number', 'The number of a shape inside a font', 'A colour code'], 1, 'The page draws shapes by number; the letter map tells what each shape means.'],
+      ['A glyph looks like "ل" but the file says it is "?". What do you trust?', ['The file', 'The shape', 'Neither'], 1, 'The shape is what everyone sees. Correct the letter map from the shape, once, and it applies to the whole document.']]},
+  { t: 'Reading order and right-to-left text', body: [
+    'PDFs usually draw letters <b>left to right</b>, even for Arabic or Hebrew. To read them you must put them back in <b>reading order</b>: right to left for those scripts, with numbers and Latin words kept left to right inside them.',
+    'Accents and diacritics (like the Arabic harakat) are separate tiny glyphs. Attach each one to the letter it is <b>drawn on</b>, not just its neighbour in the list.',
+    'Some programs never store spaces; a word gap is just distance. A gap wider than about a fifth of the font size is a space.'],
+    qs: [
+      ['An Arabic line comes out reversed. What went wrong?', ['The font is broken', 'It was read in drawing order, not reading order', 'The PDF is a scan'], 1, 'Drawing order is visual left-to-right. Right-to-left lines must be sorted the other way.'],
+      ['A diacritic should be attached to…', ['the letter whose ink it sits on', 'the last letter of the line', 'nothing'], 0, 'Fonts shift marks onto their letter, so position (the ink), not list order, decides.']]},
+  { t: 'Hidden text and fake redaction', body: [
+    'A page is painted in order: later things cover earlier ones. If someone draws a black box over a sentence, the sentence is <b>still in the file</b>. Only the picture hides it.',
+    'Copy-paste, search, screen readers and AI tools can all read that "hidden" text. That is how secret numbers leak from "redacted" documents.',
+    'pdf-not-pixels compares drawing order with what is really visible on the rendered page, and marks such text as hidden. The live demo above shows one.'],
+    qs: [
+      ['A lawyer covers a client name with a black rectangle and sends the PDF. Is the name gone?', ['Yes', 'No: the text is still in the file under the box', 'Only on mobile'], 1, 'Covering is not removing. A real redaction deletes the text from the file.'],
+      ['Why does drawing order matter?', ['It decides what is on top, and so what is visible', 'It sets the file size', 'It does not matter'], 0, 'Later drawings cover earlier ones. That is how hidden text is detected.']]},
+  { t: 'Verify like a pro', body: [
+    '<b>Rebuild and compare:</b> redraw every page from the extracted data and compare it with the original rendering. A score near 1.0 means the data really describes the page.',
+    '<b>Count:</b> glyphs with no outline, letters with no map entry, hidden letters. Every non-zero number needs a reason.',
+    '<b>After every fix, re-run every page</b> and compare the text with the previous run, word by word. A fix for one page must not quietly break another.'],
+    qs: [
+      ['How do you prove the extracted data is complete?', ['Trust it', 'Rebuild the page from the data and compare with the original', 'Ask an AI'], 1, 'If the page can be redrawn from the data alone and matches the original, nothing important is missing.'],
+      ['You fixed a bug on page 7. What next?', ['Ship it', 'Re-run all pages and compare the text with the previous run', 'Re-run page 7 only'], 1, 'Whole-document comparison catches fixes that break other pages, the most common failure in this work.']]}
+];
+let level = 0;
+const answers = store.get('pnp-answers-v1', {});          // question key -> chosen option
+const isRight = key => { const [lv, j] = key.split('-').map(Number); return answers[key] === LEVELS[lv].qs[j][2]; };
+const correct = () => Object.keys(answers).filter(isRight).length;
+function renderLevels() {
+  const total = LEVELS.reduce((n, L) => n + L.qs.length, 0), done = Object.keys(answers).length;
+  const right = correct();
+  $('bar').style.width = (done / total * 100) + '%';
+  $('progressText').textContent = `${done} of ${total} questions answered · ${right} correct`;
+  $('levels').innerHTML = LEVELS.map((L, i) => {
+    const ok = L.qs.every((_, j) => answers[i + '-' + j] !== undefined);
+    return `<button class="${i === level ? 'on' : ''}" data-l="${i}"><span>Level ${i + 1} · ${L.t}</span><span class="tick">${ok ? '✓' : ''}</span></button>`;
+  }).join('');
+  $('levels').querySelectorAll('button').forEach(b => b.onclick = () => { level = +b.dataset.l; renderLevels(); renderLesson(); });
+}
+function renderLesson() {
+  const L = LEVELS[level], total = LEVELS.reduce((n, L) => n + L.qs.length, 0);
+  let html = `<h3>Level ${level + 1}: ${L.t}</h3><div class="body">${L.body.map(p => `<p>${p}</p>`).join('')}</div>`;
+  html += L.qs.map(([ask, opts, right, why], j) => {
+    const key = level + '-' + j, a = answers[key];
+    const cls = k => a === undefined ? '' : k === right ? 'right' : k === a ? 'wrong' : '';
+    return `<div class="q ${a !== undefined ? 'done' : ''}" data-k="${key}"><div class="ask">Q${j + 1}. ${ask}</div><div class="opts">` +
+      opts.map((o, k) => `<button data-o="${k}" class="${cls(k)}">${o}</button>`).join('') +
+      `</div><div class="why">${a === undefined ? '' : a === right ? '✅ Correct. ' : '❌ Not quite. '}${why}</div></div>`;
+  }).join('');
+  if (level < LEVELS.length - 1) html += `<button class="btn dark" id="next">Next level →</button>`;
+  else if (Object.keys(answers).length === total) {
+    const right = correct();
+    html += `<div class="cert"><div style="font-size:42px">🏆</div><h3>PDF Data Pro</h3><p>You finished all five levels with <b>${right} / ${total}</b> correct.<br>You now know how to get exact data out of PDFs, and how to prove it.</p></div>`;
+  }
+  $('lesson').innerHTML = html;
+  $('lesson').querySelectorAll('.q').forEach(q => q.querySelectorAll('button').forEach(b => b.onclick = () => {
+    if (answers[q.dataset.k] !== undefined) return;
+    answers[q.dataset.k] = +b.dataset.o;
+    store.set('pnp-answers-v1', answers); renderLevels(); renderLesson();
+  }));
+  const next = $('next'); if (next) next.onclick = () => { level++; renderLevels(); renderLesson(); $('academy').scrollIntoView(); };
+}
+renderLevels(); renderLesson();
+</script>
+</body>
+</html>

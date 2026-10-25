@@ -1,0 +1,5 @@
+# tested with Python 3.12
+pymupdf>=1.28      # reads the PDF's drawing instructions (tested 1.28.2)
+fonttools>=4.60    # reads glyph outlines from embedded fonts (tested 4.63.0)
+pillow>=10.1       # images and comparisons (tested 12.3.0)
+playwright>=1.40   # only for tools/check.py and the demo media: draws pages in a real browser (tested 1.63.0)

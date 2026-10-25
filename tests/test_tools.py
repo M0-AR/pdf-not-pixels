@@ -68,3 +68,18 @@ def test_rebuilt_page_looks_like_the_pdf():
         import pytest
         pytest.skip(f'visual check not available: {e}')
     assert score > 0.99, score
+
+
+def test_demo_invoice_triage_and_text():
+    sys.path.insert(0, f'{ROOT}/tools')
+    import pymupdf
+    from triage import classify
+    pdf = f'{ROOT}/examples/demo-invoice.pdf'
+    fixes = json.load(open(f'{ROOT}/examples/demo-fixes.json', encoding='utf-8'))
+    m = extract(pdf, 1, fixes)
+    info = classify(pymupdf.open(pdf)[0], m)
+    assert info['kind'] == 'text'
+    assert info['hidden_text'] == 'Internal note: client agreed to a 30% discount. Do not disclose.'
+    text = [l['text'] for l in m['lines']]
+    assert 'Total due: USD 4,922.00' in text and 'شُكْرًا لِتَعامُلِكُم مَعَنا' in text
+    assert m['report']['glyphs_unmapped'] == 0
