@@ -11,6 +11,7 @@ from collections import Counter, defaultdict
 
 import pymupdf
 from fontTools.cffLib import CFFFontSet
+from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.t1Lib import T1Font
 from fontTools.ttLib import TTFont
@@ -118,6 +119,18 @@ class Outlines:
             return g.width
         except Exception:
             return None
+
+    def ink(self, gid):
+        """Horizontal extent (xmin, xmax) of a glyph's outline in font units: where it is really drawn. For marks
+        this can be far from the glyph's origin, since fonts shift marks onto their base letter."""
+        if self.glyphs is None or not 0 <= gid < len(self.order):
+            return None
+        pen = BoundsPen(self.glyphs)
+        try:
+            self.glyphs[self.order[gid]].draw(pen)
+        except Exception:
+            return None
+        return (pen.bounds[0], pen.bounds[2]) if pen.bounds else None
 
     def path(self, gid):
         """SVG path data of a glyph, '' when it has no outline (e.g. a space), None when it is not in this font."""
@@ -229,6 +242,10 @@ def extract(pdf, pno, fixes=None, out=None):
                 x=r2(origin[0]), y=r2(origin[1]), bbox=[r2(v) for v in bbox], size=r2(sp['size']),
                 dir=[r2(v) for v in sp['dir']], color=hexcolor(sp['color']), opacity=r2(sp.get('opacity', 1)),
                 mode=mode, stroke_width=r2(sp.get('linewidth') or 0), seq=sp['seqno'], span=si))
+            ink = prog.ink(gid) if fid else None
+            if ink:                             # along the writing direction, from the origin, in points
+                k = sp['size'] / prog.upem
+                model['glyphs'][-1]['ink'] = [r2(ink[0] * k), r2(ink[1] * k)]
     rep['font_spans_with_several_subsets'] = ambiguous
     # U+FFFD / empty text on a visible glyph = the PDF's ToUnicode map has no entry: repair with a fixes file
     rep['glyphs_unmapped'] = sum(1 for g in model['glyphs'] if g['mode'] == 'fill' and (not g['text'] or '\ufffd' in g['text']))
@@ -266,22 +283,28 @@ def text_lines(glyphs):
         c['dir_key'] = (round(ux, 2), round(uy, 2))
         chars.append(c)
 
-    # combining marks (diacritics) are separate glyphs. Some producers draw a mark just before its letter, others
-    # just after: attach it to the neighbour in the drawing stream (same span) whose box its position falls in
+    # combining marks (diacritics) are separate glyphs. Attach each to the letter its ink is drawn on: the letter on
+    # the same baseline whose box contains the middle of the mark's outline. Use the mark's ink, not its origin
+    # (fonts shift marks onto their letter), and search all spans (some producers put a mark in another span).
+    # Only when no letter contains it, fall back to the letter drawn just before or after it.
     is_mark = lambda c: c['text'] and all(unicodedata.category(ch) == 'Mn' for ch in c['text'])
+    is_letter = lambda c: c['text'] and unicodedata.category(c['text'][0]).startswith('L')
     for c in chars:
         c['marks'] = ''
-    bases = [i for i, c in enumerate(chars) if not is_mark(c) and c['text'].strip()]
+    bases = [i for i, c in enumerate(chars) if is_letter(c)]
     for i, c in enumerate(chars):
         if not is_mark(c):
             continue
-        prev = next((j for j in reversed(bases) if j < i), None)
-        nxt = next((j for j in bases if j > i), None)
-        near = [j for j in (nxt, prev) if j is not None and chars[j]['span'] == c['span']]
-        if not near:
-            continue
-        dist = lambda j: max(chars[j]['a0'] - c['order'], 0, c['order'] - chars[j]['a1'])
-        chars[min(near, key=dist)]['marks'] += c['text']
+        at = c['order'] + (sum(c['ink']) / 2 if c.get('ink') else 0)
+        on = [j for j in bases if chars[j]['dir_key'] == c['dir_key'] and chars[j]['a0'] - 0.3 <= at <= chars[j]['a1'] + 0.3
+              and abs(chars[j]['across'] - c['across']) <= 0.6 * max(c['size'], chars[j]['size'])]
+        if not on:
+            prev = next((j for j in reversed(bases) if j < i), None)
+            nxt = next((j for j in bases if j > i), None)
+            on = [j for j in (nxt, prev) if j is not None and chars[j]['span'] == c['span']]
+        if on:
+            mid = lambda j: abs((chars[j]['a0'] + chars[j]['a1']) / 2 - at) + abs(chars[j]['across'] - c['across'])
+            chars[min(on, key=mid)]['marks'] += c['text']
     chars = [c for c in chars if not is_mark(c)]
     for c in chars:
         c['text'] = normal(c['text']) + c['marks']
@@ -304,7 +327,10 @@ def text_lines(glyphs):
     for n, ln in enumerate(lines):
         cs = ln['chars']
         letters = [c for c in cs if c['text'].strip()]
-        rtl = sum(bool(RTL.search(c['text'])) for c in letters) > len(letters) / 2
+        # direction from the letters only: digits and punctuation are neutral
+        n_rtl = sum(bool(RTL.search(c['text'])) for c in letters)
+        n_ltr = sum(bool(re.search('[^\\W\\d_]', c['text'])) and not RTL.search(c['text']) for c in letters)
+        rtl = n_rtl > n_ltr
         cs.sort(key=lambda c: -c['order'] if rtl else c['order'])
         runs = []
         for c in cs:

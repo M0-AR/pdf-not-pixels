@@ -119,7 +119,7 @@ searchable text. Leave the rest of the text alone.
 ### 4c. Reading order is not drawing order
 
 Glyphs are usually drawn left to right in visual order, even for right-to-left scripts. To get logical order:
-1. Decide each line's direction from its letters.
+1. Decide each line's direction from its letters only. Digits and punctuation are neutral, so a line like «م 2026 - 2025» is right-to-left.
 2. For right-to-left lines, sort by descending position.
 3. Restore left-to-right runs inside them (Latin words, numbers), which the sort reversed.
 4. Brackets in right-to-left text are mirrored by the bidi algorithm when displayed. If a producer stored them
@@ -127,13 +127,20 @@ Glyphs are usually drawn left to right in visual order, even for right-to-left s
 
 ### 4d. Diacritics are separate glyphs
 
-Marks (harakat, niqqud, combining accents) are drawn as their own, often zero-width, glyphs. Producers disagree
-on whether a mark comes **just before or just after** its letter in the stream.
-- Attach each mark to the neighbouring letter in the same span whose box contains the mark's position.
-- If neither does, fall back to the nearer one.
-- Check a page by hand for each producer.
+Marks (harakat, niqqud, combining accents) are drawn as their own, often zero-width, glyphs. Neither their
+position in the stream nor their origin is reliable:
+- **Order varies by producer:** some put a mark just before its letter, others just after.
+- **The origin isn't the ink:** fonts move marks onto their letter by shifting the outline, so a mark's origin
+  can sit on the neighbouring letter.
+- **Spans can be wrong:** some producers put a mark in an unrelated span, even one on another line.
 
-For scripts where one wrong mark changes the meaning, test this on known text before trusting it.
+So attach by where the mark is **drawn**:
+1. Take the middle of the mark's outline (from the font) and find the letter on the same baseline whose box
+   contains it. Search all spans.
+2. Only if no letter contains it, fall back to the letter drawn just before or after it in the same span.
+3. Only letters take marks, never digits or punctuation.
+
+For scripts where one wrong mark changes the meaning, check pages from each producer by hand.
 
 ### 4e. Spaces
 
@@ -220,7 +227,7 @@ comparison catches it.
 | Words glued together | no space glyphs (TeX) | gap > 0.2 em = space (4e) |
 | Word split in two | stray space from another font | foreign space counts only between letters (4e) |
 | Space one letter off | origin inside a kerned neighbour | order after the glyph drawn before it (4e) |
-| Diacritic on the wrong letter | mark drawn before/after its letter | attach by stream neighbour + position (4d) |
+| Diacritic one letter off, or missing | mark origin on a neighbour; mark put in another span | attach by the mark's ink, across spans (4d) |
 | Garbage mixed into a line | hidden text under a later box | occlusion by drawing order (4g) |
 | Each letter of rotated text on its own line | lines grouped in page coordinates | group in the text's own direction (4f) |
 | Labels unreadable | decorative font or image | position from PDF, content from metadata (5) |
